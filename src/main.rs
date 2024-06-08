@@ -10,19 +10,21 @@
 //! cast rpc txpoolExt_getCensoredTransactions
 //! ```
 
-use std::fs::File;
-use std::io::{self, Write};
-use std::time::Instant;
+use std::{collections::HashMap, time::Instant};
 
 use clap::Parser;
+use eye_of_reth::simulation::simulate;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
-use reth::cli::{
-    components::{RethNodeComponents, RethRpcComponents},
-    config::RethRpcConfig,
-    ext::{RethCliExt, RethNodeCommandConfig},
-    Cli,
-};
 use reth::primitives::{IntoRecoveredTransaction, TransactionSigned};
+use reth::{
+    cli::{
+        components::{RethNodeComponents, RethRpcComponents},
+        config::RethRpcConfig,
+        ext::{RethCliExt, RethNodeCommandConfig},
+        Cli,
+    },
+    primitives::Address,
+};
 
 use reth_transaction_pool::TransactionPool;
 
@@ -89,7 +91,7 @@ pub struct TxpoolExt<Pool> {
     pool: Pool,
 }
 
-const BLOCK_TIME: u64 = 12;
+const BLOCK_TIME: u64 = 12 * 2;
 
 impl<Pool> TxpoolExtApiServer for TxpoolExt<Pool>
 where
@@ -110,12 +112,40 @@ where
             }
         }
 
-        // store the censored transactions in a json file
-        // let json_string = serde_json::to_string(&censored_txs).unwrap();
-        // let file = File::create("censored.json").unwrap();
-        // let mut writer = io::BufWriter::new(file);
-        // writer.write_all(json_string.as_bytes()).unwrap();
+        let mut sender_to_txs: HashMap<Option<Address>, Vec<TransactionSigned>> = HashMap::new();
+        for tx in censored_txs {
+            let sender = tx.recover_signer();
+            sender_to_txs
+                .entry(sender)
+                .or_insert_with(|| Vec::new())
+                .push(tx);
+        }
 
-        Ok(censored_txs.len())
+        // feed sender_to_txs to eth-simulator and return valid txs
+        simulate(sender_to_txs);
+
+        // let base_fee = 20;
+
+        // let mut transactions_with_base_fee = Vec::<TransactionSigned>::new();
+
+        // filer transactions with 0 prriority fee
+        // for tx in *censored_txs {
+        //     match tx.transaction {
+        //         Transaction::Legacy(tx_legacy) => {}
+        //         Transaction::Eip1559(tx_1559) => {
+        //             if tx_1559.max_priority_fee_per_gas == 0 {
+        //                 transactions_with_base_fee.push(tx)
+        //             }
+        //         }
+        //         Transaction::Eip2930(tx_2930) => {}
+        //         Transaction::Eip4844(tx_4844) => {
+        //             if tx_4844.max_priority_fee_per_gas > 0 {
+        //                 transactions_with_base_fee.push(tx)
+        //             }
+        //         }
+        //     }
+        // }
+
+        Ok(0)
     }
 }
