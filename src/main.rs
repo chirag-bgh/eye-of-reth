@@ -4,7 +4,7 @@
 //! cargo run -p eye-of-reth -- node --http --ws --enable-ext --chain holesky
 //! ```
 //!
-//! curl --location 'localhost:8545/' --header 'Content-Type: application/json' --data '{"jsonrpc":"2.0","method":"txpoolExt_getbestTransactions","params":[],"id":1}'
+//! curl --location 'localhost:8545/' --header 'Content-Type: application/json' --data '{"jsonrpc":"2.0","method":"eth_getBestTransactions","params":[],"id":1}'
 //!
 //!
 impl<Pool> TxpoolExtApiServer for TxpoolExt<Pool>
@@ -18,7 +18,10 @@ where
             .into_iter()
             .map(|tx| tx.to_recovered_transaction().into_signed())
             .collect();
-        info!("Found {:?} transactions ready to be included", transactionss.len());
+        info!(
+            "Found {:?} transactions ready to be included",
+            transactionss.len()
+        );
         Ok(transactionss)
     }
 }
@@ -65,11 +68,10 @@ struct RethCliTxpoolExt {
 /// trait interface for a custom rpc namespace: `txpool`
 ///``
 /// This defines an additional namespace where all methods are configured as trait functions.
-#[cfg_attr(not(test), rpc(server, namespace = "txpoolExt"))]
-#[cfg_attr(test, rpc(server, client, namespace = "txpoolExt"))]
+#[rpc(server, namespace = "eth")]
 pub trait TxpoolExtApi {
     /// Returns the number of transactions in the pool.
-    #[method(name = "getbestTransactions")]
+    #[method(name = "getBestTransactions")]
     fn best_transactions(&self) -> RpcResult<Vec<TransactionSigned>>;
 }
 /// The type that implements the `txpool` rpc namespace trait
